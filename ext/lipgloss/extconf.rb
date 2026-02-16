@@ -42,16 +42,22 @@ unless File.exist?(File.join(go_lib_dir, "liblipgloss.a"))
   ERROR
 end
 
+go_lib_path = File.join(go_lib_dir, "liblipgloss.a")
+
 $LDFLAGS << " -L#{go_lib_dir}"
 $INCFLAGS << " -I#{go_lib_dir}"
 
-$LOCAL_LIBS << " #{go_lib_dir}/liblipgloss.a"
-
 case RbConfig::CONFIG["host_os"]
 when /darwin/
+  $LDFLAGS << " -Wl,-load_hidden,#{go_lib_path}"
+  $LDFLAGS << " -Wl,-exported_symbol,_Init_lipgloss"
   $LDFLAGS << " -framework CoreFoundation -framework Security -framework SystemConfiguration"
   $LDFLAGS << " -lresolv"
 when /linux/
+  $LOCAL_LIBS << " #{go_lib_path}"
+  version_script = File.join(__dir__, "version_script.map")
+  File.write(version_script, "{ global: Init_lipgloss; local: *; };")
+  $LDFLAGS << " -Wl,--version-script,#{version_script}"
   $LDFLAGS << " -lpthread -lm -ldl"
   $LDFLAGS << " -lresolv" if find_library("resolv", "res_query")
 end
